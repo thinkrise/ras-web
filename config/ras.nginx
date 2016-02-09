@@ -1,0 +1,78 @@
+##
+#
+# ras.rise.studio server configuration
+#
+##
+
+error_log              /var/log/nginx/ras.rise.studio.error.log;
+access_log             /var/log/nginx/ras.rise.studio.access.log;
+
+# Forward to base node.js install.
+upstream ras.rise.studio {
+  server 127.0.0.1:6002 weight=3;
+}
+
+# Non-Secure (HTTP)
+server {
+  listen                80;
+  server_name           ras.rise.studio.localhost;
+  return                301 https://$server_name$request_uri;
+}
+
+# Secure (HTTPS)
+server {
+  listen                443 ssl;
+  client_max_body_size  4G;
+  server_name           ras.rise.studio.localhost;
+
+  ssl_certificate        /etc/nginx/ssl/ras.rise.studio.crt;
+  ssl_certificate_key    /etc/nginx/ssl/ras.rise.studio.key;
+
+  ssl_session_cache      shared:SSL:10m;
+  ssl_session_timeout    10m;
+
+  keepalive_timeout     70;
+
+  gzip                  on;
+  gzip_disable          "msie6";
+  gzip_types text/plain application/xml application/json;
+  gzip_min_length       1000;
+  gzip_proxied          no-cache no-store private expired auth;
+  gzip_static           on;
+  gzip_comp_level 6;
+  gzip_buffers 16 8k;
+  gzip_types            text/plain
+                        text/css
+                        text/js
+                        text/xml
+                        text/javascript
+                        application/javascript
+                        application/x-javascript
+                        application/json
+                        application/xml
+                        application/xml+rss;
+  gunzip                on;
+
+
+  # add Strict-Transport-Security to prevent man in the middle attacks.
+  add_header Strict-Transport-Security "max-age=31536000";
+
+  root /var/www/ras.rise.studio;
+
+  index index.html index.htm index.nginx-debian.html;
+
+  location / {
+    # proxy_pass_header Server;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $http_host;
+    proxy_redirect off;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Scheme $scheme;
+    proxy_connect_timeout 5;
+    proxy_read_timeout 240;
+    proxy_pass https://ras.rise.studio;
+    # First attempt to serve request as file, then
+    # as directory, then fall back to displaying a 404.
+    try_files $uri $uri/ =404;
+  }
+}
